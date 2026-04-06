@@ -1,76 +1,93 @@
 import pandas as pd
-from visualisation import plot_elbow, plot_feature_comparison, plot_clusters
-# 1. Load the dataset
+import matplotlib.pyplot as plt
+
+# Custom modules
+from kmeans_model import run_kmeans
+from visualisation import plot_elbow, plot_clusters, plot_feature_comparison
+
+# 1. Load dataset
 df = pd.read_csv("dataset/store_customers.csv")
+
 # 2. Data preprocessing
-# print(df.head())
-# print(df.info())
-# print(df.describe())
-# print(df.columns)
-# print(df.isnull().sum())
 df = df.dropna()
 df['Gender'] = df['Gender'].map({'M': 0, 'F': 1})
 
-X = df[['Gender', 'Age']]
+# 3. Define feature combinations
+feature_sets = {
+    "All features": ['Gender', 'Age', 'Annual Income (k$)', 'Spending Score (1-100)'],
+    "No Gender": ['Age', 'Annual Income (k$)', 'Spending Score (1-100)'],
+    "No Age": ['Gender', 'Annual Income (k$)', 'Spending Score (1-100)'],
+    "Income + Spending": ['Annual Income (k$)', 'Spending Score (1-100)'],
+    "Gender + Spending": ['Gender', 'Spending Score (1-100)'],
+    "Gender + Age": ['Gender', 'Age'],
+    "Age + Income": ['Age', 'Annual Income (k$)']
+}
 
-#Data Scaling
+# Store results
+results = []
+
 from sklearn.preprocessing import StandardScaler
 
-scaler = StandardScaler()
-X_scaled = scaler.fit_transform(X)
-# print(X_scaled)
+# 4. Loop through feature sets
+for name, features in feature_sets.items():
+    X = df[features]
 
-import matplotlib.pyplot as plt
-from sklearn.cluster import KMeans
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
 
-# Elbow method
-wcss = []
+    # Run KMeans
+    labels, score = run_kmeans(X_scaled, 5)
 
-for i in range(1, 10):
-    kmeans = KMeans(n_clusters=i, random_state=42)
-    kmeans.fit(X_scaled)
-    wcss.append(kmeans.inertia_)
+    results.append((name, score))
 
-plot_elbow(wcss)   
-
-
-# Final model
-kmeans = KMeans(n_clusters=5, random_state=42)
-labels = kmeans.fit_predict(X_scaled)
-
-df['Cluster'] = labels
-
-plot_clusters(X_scaled, labels)  
-
-
-# Evaluation
-from sklearn.metrics import silhouette_score
-
-score = silhouette_score(X_scaled, labels)
-print("Silhouette Score:", score)
-
-
-
-results = [
-    ("All features", 0.459),
-    ("No Gender", 0.353),
-    ("No Age", 0.474),
-    ("Income + Spending", 0.354),
-    ("Gender + Spending", 0.578),
-    ("Gender + Age", 0.603),
-    ("Age + Income", 0.439)
-]
-
+# 5. Convert to DataFrame
 results_df = pd.DataFrame(results, columns=["Features", "Silhouette Score"])
 
 print("\nFeature Comparison Table:")
 print(results_df)
 
-best_row = results_df.loc[results_df["Silhouette Score"].idxmax()]
-
-print("\nBest Feature Combination:")
-print(best_row)
-
+# 6. Save results
 results_df.to_csv("results.csv", index=False)
 
+# 7. Plot comparison
 plot_feature_comparison(results_df)
+
+# 8. Get BEST feature set
+best_features = results_df.loc[results_df["Silhouette Score"].idxmax(), "Features"]
+
+print("\nBest Feature Set:", best_features)
+
+# 9. Train FINAL model using best features
+final_features = feature_sets[best_features]
+X = df[final_features]
+
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+# Elbow Method (only once for final model)
+from sklearn.cluster import KMeans
+
+wcss = []
+for i in range(1, 10):
+    kmeans = KMeans(n_clusters=i, random_state=42)
+    kmeans.fit(X_scaled)
+    wcss.append(kmeans.inertia_)
+
+plot_elbow(wcss)
+
+# Final KMeans
+labels, score = run_kmeans(X_scaled, 5)
+
+df['Cluster'] = labels
+
+print("\nFinal Model Score:", score)
+
+# Plot clusters
+plot_clusters(X_scaled, labels)
+
+# Cluster summary
+cluster_summary = df.groupby('Cluster').mean()
+print("\nCluster Summary:")
+print(cluster_summary)
+
+cluster_summary.to_csv("cluster_summary.csv")
