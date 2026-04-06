@@ -15,10 +15,17 @@ def plot_elbow(wcss):
     plt.savefig("images/elbow.png")
     plt.show()
 
-
 def plot_feature_comparison(results_df):
+    import matplotlib.pyplot as plt
+
     plt.figure()
-    plt.bar(results_df["Features"], results_df["Silhouette Score"])
+    bars = plt.bar(results_df["Features"], results_df["Silhouette Score"])
+
+    # Highlight best bar
+    max_index = results_df["Silhouette Score"].idxmax()
+    bars[max_index].set_edgecolor('black')
+    bars[max_index].set_linewidth(2)
+
     plt.xticks(rotation=45)
     plt.xlabel("Feature Combinations")
     plt.ylabel("Silhouette Score")
@@ -27,7 +34,6 @@ def plot_feature_comparison(results_df):
     plt.tight_layout()
     plt.savefig("images/feature_comparison.png")
     plt.show()
-
 
 def plot_clusters(X_scaled, labels):
     plt.figure()

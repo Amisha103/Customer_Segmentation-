@@ -1,4 +1,5 @@
 import pandas as pd
+from visualisation import plot_elbow, plot_feature_comparison, plot_clusters
 # 1. Load the dataset
 df = pd.read_csv("dataset/store_customers.csv")
 # 2. Data preprocessing
@@ -22,6 +23,7 @@ X_scaled = scaler.fit_transform(X)
 import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 
+# Elbow method
 wcss = []
 
 for i in range(1, 10):
@@ -29,23 +31,46 @@ for i in range(1, 10):
     kmeans.fit(X_scaled)
     wcss.append(kmeans.inertia_)
 
-# plt.plot(range(1, 10), wcss)
-# plt.xlabel("Number of clusters")
-# plt.ylabel("WCSS")
-# plt.title("Elbow Method")
-# plt.show()
+plot_elbow(wcss)   
 
-from sklearn.cluster import KMeans
 
+# Final model
 kmeans = KMeans(n_clusters=5, random_state=42)
 labels = kmeans.fit_predict(X_scaled)
 
-
 df['Cluster'] = labels
 
-print(df.head())
+plot_clusters(X_scaled, labels)  
 
+
+# Evaluation
 from sklearn.metrics import silhouette_score
 
 score = silhouette_score(X_scaled, labels)
 print("Silhouette Score:", score)
+
+
+
+results = [
+    ("All features", 0.459),
+    ("No Gender", 0.353),
+    ("No Age", 0.474),
+    ("Income + Spending", 0.354),
+    ("Gender + Spending", 0.578),
+    ("Gender + Age", 0.603),
+    ("Age + Income", 0.439)
+]
+
+results_df = pd.DataFrame(results, columns=["Features", "Silhouette Score"])
+
+print("\nFeature Comparison Table:")
+print(results_df)
+
+best_row = results_df.loc[results_df["Silhouette Score"].idxmax()]
+
+print("\nBest Feature Combination:")
+print(best_row)
+
+results_df.to_csv("results.csv", index=False)
+
+plot_feature_comparison(results_df)
