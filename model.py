@@ -1,9 +1,10 @@
 import pandas as pd
-import matplotlib.pyplot as plt
-
+from sklearn.preprocessing import StandardScaler
+from sklearn.cluster import KMeans
 
 # Custom modules
 from kmeans_model import run_kmeans
+from dbscan_model import run_dbscan
 from visualisation import plot_elbow, plot_clusters, plot_feature_comparison
 
 # 1. Load dataset
@@ -13,7 +14,7 @@ df = pd.read_csv("dataset/store_customers.csv")
 df = df.dropna()
 df['Gender'] = df['Gender'].map({'M': 0, 'F': 1})
 
-# 3. Define feature combinations
+# 3. Feature combinations
 feature_sets = {
     "All features": ['Gender', 'Age', 'Annual Income (k$)', 'Spending Score (1-100)'],
     "No Gender": ['Age', 'Annual Income (k$)', 'Spending Score (1-100)'],
@@ -24,70 +25,123 @@ feature_sets = {
     "Age + Income": ['Age', 'Annual Income (k$)']
 }
 
-# Store results
-results = []
+# =========================
+# 🔵 KMEANS EXPERIMENT
+# =========================
 
-from sklearn.preprocessing import StandardScaler
+kmeans_results = []
 
-# 4. Loop through feature sets
 for name, features in feature_sets.items():
     X = df[features]
 
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
 
-    # Run KMeans
     labels, score = run_kmeans(X_scaled, 5)
+    kmeans_results.append((name, score))
 
-    results.append((name, score))
+kmeans_df = pd.DataFrame(kmeans_results, columns=["Features", "Silhouette Score"])
 
-# 5. Convert to DataFrame
-results_df = pd.DataFrame(results, columns=["Features", "Silhouette Score"])
+print("\nKMeans Results:")
+print(kmeans_df)
 
-print("\nFeature Comparison Table:")
-print(results_df)
+kmeans_df.to_csv("kmeans_results.csv", index=False)
+plot_feature_comparison(kmeans_df)
 
-# 6. Save results
-results_df.to_csv("results.csv", index=False)
+# Best KMeans model
+best_kmeans_row = kmeans_df.loc[kmeans_df["Silhouette Score"].idxmax()]
+best_kmeans_features = best_kmeans_row["Features"]
+best_kmeans_score = best_kmeans_row["Silhouette Score"]
 
-# 7. Plot comparison
-plot_feature_comparison(results_df)
+print("\nBest KMeans Model:")
+print(best_kmeans_row)
 
-# 8. Get BEST feature set
-best_features = results_df.loc[results_df["Silhouette Score"].idxmax(), "Features"]
+# =========================
+# 🟢 DBSCAN EXPERIMENT
+# =========================
 
-print("\nBest Feature Set:", best_features)
+dbscan_results = []
 
-# 9. Train FINAL model using best features
-final_features = feature_sets[best_features]
-X = df[final_features]
+for name, features in feature_sets.items():
+    X = df[features]
+
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+
+    labels, score = run_dbscan(X_scaled)
+    dbscan_results.append((name, score))
+
+dbscan_df = pd.DataFrame(dbscan_results, columns=["Features", "Silhouette Score"])
+
+print("\nDBSCAN Results:")
+print(dbscan_df)
+
+dbscan_df.to_csv("dbscan_results.csv", index=False)
+plot_feature_comparison(dbscan_df)
+
+# Best DBSCAN model
+best_dbscan_row = dbscan_df.loc[dbscan_df["Silhouette Score"].idxmax()]
+best_dbscan_features = best_dbscan_row["Features"]
+best_dbscan_score = best_dbscan_row["Silhouette Score"]
+
+print("\nBest DBSCAN Model:")
+print(best_dbscan_row)
+
+# =========================
+# 🔥 FINAL COMPARISON
+# =========================
+
+print("\nFINAL COMPARISON:")
+print("Best KMeans Score:", best_kmeans_score)
+print("Best DBSCAN Score:", best_dbscan_score)
+
+if best_kmeans_score > best_dbscan_score:
+    final_algorithm = "KMeans"
+    final_features = best_kmeans_features
+    final_score = best_kmeans_score
+else:
+    final_algorithm = "DBSCAN"
+    final_features = best_dbscan_features
+    final_score = best_dbscan_score
+
+print("\nFINAL SELECTED MODEL:")
+print("Algorithm:", final_algorithm)
+print("Features:", final_features)
+print("Score:", final_score)
+
+
+
+X = df[feature_sets[final_features]]
 
 scaler = StandardScaler()
 X_scaled = scaler.fit_transform(X)
 
-# Elbow Method (only once for final model)
-from sklearn.cluster import KMeans
 
-wcss = []
-for i in range(1, 10):
-    kmeans = KMeans(n_clusters=i, random_state=42)
-    kmeans.fit(X_scaled)
-    wcss.append(kmeans.inertia_)
+if final_algorithm == "KMeans":
+    wcss = []
+    for i in range(1, 10):
+        kmeans = KMeans(n_clusters=i, random_state=42)
+        kmeans.fit(X_scaled)
+        wcss.append(kmeans.inertia_)
 
-plot_elbow(wcss)
+    plot_elbow(wcss)
 
-# Final KMeans
-labels, score = run_kmeans(X_scaled, 5)
+
+if final_algorithm == "KMeans":
+    labels, score = run_kmeans(X_scaled, 5)
+else:
+    labels, score = run_dbscan(X_scaled)
 
 df['Cluster'] = labels
 
 print("\nFinal Model Score:", score)
 
-# Plot clusters
+
 plot_clusters(X_scaled, labels)
 
-# Cluster summary
+
 cluster_summary = df.groupby('Cluster').mean()
+
 print("\nCluster Summary:")
 print(cluster_summary)
 

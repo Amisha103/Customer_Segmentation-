@@ -1,0 +1,8 @@
+Features,Silhouette Score
+All features,0.3261586000282511
+No Gender,0.42479777502107674
+No Age,0.319785342391798
+Income + Spending,-1.0
+Gender + Spending,0.48232345155743905
+Gender + Age,0.5682079004223303
+Age + Income,-1.0

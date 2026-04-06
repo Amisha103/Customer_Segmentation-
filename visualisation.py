@@ -16,7 +16,7 @@ def plot_elbow(wcss):
     plt.show()
 
 def plot_feature_comparison(results_df):
-    import matplotlib.pyplot as plt
+    
 
     plt.figure()
     bars = plt.bar(results_df["Features"], results_df["Silhouette Score"])
