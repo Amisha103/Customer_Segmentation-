@@ -5,13 +5,12 @@ def run_dbscan(X_scaled, eps=0.5, min_samples=5):
     dbscan = DBSCAN(eps=eps, min_samples=min_samples)
     labels = dbscan.fit_predict(X_scaled)
 
-    # Check if valid clustering exists
+    # Remove noise points (-1) for silhouette
     unique_labels = set(labels)
 
-    # If only one cluster or all noise → invalid
-    if len(unique_labels) <= 1 or (len(unique_labels) == 1 and -1 in unique_labels):
-        score = -1
-    else:
+    if len(unique_labels) > 1 and -1 not in unique_labels:
         score = silhouette_score(X_scaled, labels)
+    else:
+        score = -1  # invalid clustering
 
     return labels, score

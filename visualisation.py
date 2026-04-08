@@ -27,3 +27,21 @@ plt.xticks(rotation=30)
 plt.tight_layout()
 plt.savefig("images/kmeans_feature_comparison.png", dpi=300)
 plt.show()
+
+
+segment_counts = df['Customer_Segment'].value_counts()
+
+plt.figure(figsize=(8, 5))
+plt.bar(segment_counts.index, segment_counts.values)
+
+plt.xlabel("Customer Segments")
+plt.ylabel("Number of Customers")
+plt.title("Customer Segmentation Distribution")
+
+plt.xticks(rotation=30)
+plt.tight_layout()
+
+# SAVE IMAGE
+plt.savefig("outputs/customer_segments.png", dpi=300)
+
+plt.show()
