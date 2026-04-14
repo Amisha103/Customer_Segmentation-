@@ -1,137 +1,252 @@
+import streamlit as st
 import pandas as pd
-from sklearn.preprocessing import StandardScaler
+import matplotlib.pyplot as plt
+import numpy as np
 
-# Custom modules
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+from sklearn.metrics import silhouette_score
+from sklearn.cluster import KMeans
+
 from kmeans_model import run_kmeans
 from dbscan_model import run_dbscan
 
-# =========================
-# 1. LOAD DATA
-# =========================
-df = pd.read_csv("dataset/customer_data.csv")
-
-# Use sample (for performance)
-df = df.sample(n=10000, random_state=42)
+st.set_page_config(page_title="Customer Segmentation", layout="wide")
 
 # =========================
-# 2. PREPROCESSING
+# SIDEBAR
 # =========================
-df = df.dropna()
-df = df.drop(columns=['id'])
-
-# Encode gender
-df['gender'] = df['gender'].map({'Male': 0, 'Female': 1})
-
-# One-hot encoding
-df_encoded = pd.get_dummies(
-    df,
-    columns=[
-        'education',
-        'region',
-        'loyalty_status',
-        'purchase_frequency',
-        'product_category'
-    ],
-    drop_first=True
+page = st.sidebar.radio(
+    "Navigation",
+    ["📊 Default Dataset Results", "📂 Upload Your Dataset"]
 )
 
-
-col_loy = [col for col in df_encoded.columns if 'loyalty_status' in col]
-
-X = df_encoded[
-    col_loy +
-    ['income']
-]
-
-
-scaler = StandardScaler()
-X_scaled = scaler.fit_transform(X)
-
-
-labels_kmeans, score_kmeans = run_kmeans(X_scaled, 5)
-
-print("\nKMeans Silhouette Score:", score_kmeans)
-
-
-best_dbscan_score = -1
-best_params = None
-best_labels_dbscan = None
-
-for eps in [0.3, 0.5, 0.7, 1.0]:
-    for min_samples in [3, 5, 10]:
-        labels_db, score_db = run_dbscan(X_scaled, eps, min_samples)
-
-        print(f"DBSCAN eps={eps}, min_samples={min_samples} → score={score_db}")
-
-        if score_db > best_dbscan_score:
-            best_dbscan_score = score_db
-            best_params = (eps, min_samples)
-            best_labels_dbscan = labels_db
-
-print("\nBest DBSCAN Params:", best_params)
-print("Best DBSCAN Score:", best_dbscan_score)
-
-
-print("\nFINAL COMPARISON:")
-print("KMeans Score:", score_kmeans)
-print("DBSCAN Score:", best_dbscan_score)
-
-if score_kmeans > best_dbscan_score:
-    final_model = "KMeans"
-    final_labels = labels_kmeans
-    final_score = score_kmeans
-else:
-    final_model = "DBSCAN"
-    final_labels = best_labels_dbscan
-    final_score = best_dbscan_score
-
-print("\nFINAL SELECTED MODEL:", final_model)
-print("Final Score:", final_score)
+st.title("📊 Customer Segmentation Dashboard")
 
 # =========================
-# 5. SAVE RESULTS
+# PIPELINE FUNCTION
 # =========================
-df['Cluster'] = final_labels
+def run_pipeline(df):
 
-# Cluster summary
-cluster_summary = df.groupby('Cluster').mean(numeric_only=True)
+    df = df.dropna()
+    df = df.drop(columns=['id'])
 
-print("\nCluster Summary:")
-print(cluster_summary)
+    df['gender'] = df['gender'].map({'Male': 0, 'Female': 1})
 
-# Save outputs
-cluster_summary.to_csv("outputs/cluster_summary.csv")
-df.to_csv("outputs/final_clustered_data.csv", index=False)
+    df_encoded = pd.get_dummies(
+        df,
+        columns=[
+            'education',
+            'region',
+            'loyalty_status',
+            'purchase_frequency',
+            'product_category'
+        ],
+        drop_first=True
+    )
 
-cluster_names = {}
+    # =========================
+    # FEATURE SELECTION
+    # =========================
+    col_loy = [col for col in df_encoded.columns if 'loyalty_status' in col]
+    df_encoded['loyalty_score'] = df_encoded[col_loy].sum(axis=1)
 
-avg_income = cluster_summary['income'].mean()
-avg_satisfaction = cluster_summary['satisfaction_score'].mean()
-avg_promo = cluster_summary['promotion_usage'].mean()
-for cluster in cluster_summary.index:
-    row = cluster_summary.loc[cluster]
+# ✅ IMPORTANT FIX
+    df['loyalty_score'] = df_encoded['loyalty_score']
 
-    income = row['income']
-    satisfaction = row['satisfaction_score']
-    promo = row['promotion_usage']
+    features_used = col_loy + ['income', 'loyalty_score']
 
-    if income > avg_income and satisfaction > avg_satisfaction:
-        cluster_names[cluster] = "Premium Customers 💎"
-    
-    elif income < avg_income and satisfaction < avg_satisfaction:
-        cluster_names[cluster] = "Budget Customers 💸"
-    
-    elif promo > avg_promo:
-        cluster_names[cluster] = "Deal Hunters 🏷️"
-    
-    elif satisfaction > avg_satisfaction:
-        cluster_names[cluster] = "Happy Customers 😊"
-    
-    else:
-        cluster_names[cluster] = "Regular Customers 👥"
+    X = df_encoded[features_used]
 
-df['Customer_Segment'] = df['Cluster'].map(cluster_names)
-print("\nCluster Meaning:")
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
 
-for k, v in cluster_names.items():
-    print(f"Cluster {k} → {v}")
+    # =========================
+    # ELBOW METHOD
+    # =========================
+    inertia = []
+    K_range = range(2, 8)
+
+    for k in K_range:
+        km = KMeans(n_clusters=k, random_state=42)
+        km.fit(X_scaled)
+        inertia.append(km.inertia_)
+
+    # =========================
+    # KMEANS
+    # =========================
+    best_score = -1
+    best_labels = None
+    best_k = 2
+    scores_dict = {}
+
+    for k in K_range:
+        labels, _ = run_kmeans(X_scaled, k)
+        score = silhouette_score(X_scaled, labels)
+
+        scores_dict[k] = score
+
+        if score > best_score:
+            best_score = score
+            best_k = k
+            best_labels = labels
+
+    # =========================
+    # DBSCAN
+    # =========================
+    best_db_score = -1
+    best_db_labels = None
+    best_params = None
+
+    for eps in [0.2, 0.3, 0.4]:
+        for min_samples in [3, 5]:
+            labels_db, score_db = run_dbscan(X_scaled, eps, min_samples)
+
+            if score_db > best_db_score:
+                best_db_score = score_db
+                best_db_labels = labels_db
+                best_params = (eps, min_samples)
+
+    df['Cluster'] = best_labels
+
+    return (
+        df, features_used, X_scaled,
+        best_labels, best_k, best_score,
+        scores_dict, inertia, K_range,
+        best_db_labels, best_db_score, best_params
+    )
+
+
+# =========================
+# 📊 PAGE 1
+# =========================
+if page == "📊 Default Dataset Results":
+
+    df = pd.read_csv("dataset/customer_data.csv").sample(n=10000, random_state=42)
+
+    (
+        df, features_used, X_scaled,
+        labels, best_k, best_score,
+        scores_dict, inertia, K_range,
+        db_labels, db_score, db_params
+    ) = run_pipeline(df)
+
+    # =========================
+    # INFO SECTION
+    # =========================
+    st.subheader("📌 Model Explanation")
+
+    st.write("**Features Used:**")
+    st.write(features_used)
+
+    st.write(f"**Best K (KMeans):** {best_k}")
+    st.write(f"**Silhouette Score:** {best_score:.3f}")
+
+    st.write(f"**Best DBSCAN Params:** {db_params}")
+    st.write(f"**DBSCAN Score:** {db_score:.3f}")
+
+    # =========================
+    # VISUALS
+    # =========================
+    col1, col2 = st.columns(2)
+
+    # 🔹 Elbow
+    with col1:
+        fig, ax = plt.subplots(figsize=(4,3))
+        ax.plot(K_range, inertia, marker='o')
+        ax.set_title("Elbow Method")
+        st.pyplot(fig)
+
+    # 🔹 Silhouette
+    with col2:
+        fig2, ax2 = plt.subplots(figsize=(4,3))
+        ax2.plot(list(scores_dict.keys()), list(scores_dict.values()), marker='o')
+        ax2.set_title("Silhouette Scores")
+        st.pyplot(fig2)
+
+    # 🔹 Scatter (REAL FEATURES)
+    st.subheader("🎯 KMeans Clusters (Income vs Loyalty)")
+
+    fig3, ax3 = plt.subplots(figsize=(5,3))
+    ax3.scatter(df['income'], df['loyalty_score'], c=labels)
+    ax3.set_xlabel("Income")
+    ax3.set_ylabel("Loyalty Score")
+    st.pyplot(fig3)
+
+    # 🔹 DBSCAN Plot
+    st.subheader("🔍 DBSCAN Clusters")
+
+    fig4, ax4 = plt.subplots(figsize=(5,3))
+    ax4.scatter(df['income'], df['loyalty_score'], c=db_labels)
+    st.pyplot(fig4)
+
+    # =========================
+    # DBSCAN DETAILS
+    # =========================
+    st.subheader("DBSCAN Details")
+
+    unique_labels = set(db_labels)
+    st.write("Clusters found:", len(unique_labels) - (1 if -1 in unique_labels else 0))
+    st.write("Noise points:", list(db_labels).count(-1))
+
+    # =========================
+    # SUMMARY
+    # =========================
+    st.subheader("📊 Cluster Summary")
+    st.dataframe(df.groupby('Cluster').mean(numeric_only=True))
+
+    st.subheader("📊 Segment Distribution")
+    st.bar_chart(df['Cluster'].value_counts())
+
+
+# =========================
+# 📂 PAGE 2
+# =========================
+elif page == "📂 Upload Your Dataset":
+
+    uploaded_file = st.file_uploader("Upload CSV", type=["csv"])
+
+    if uploaded_file:
+        df = pd.read_csv(uploaded_file)
+
+        st.write("Preview:")
+        st.dataframe(df.head())
+
+        (
+            df, features_used, X_scaled,
+            labels, best_k, best_score,
+            scores_dict, inertia, K_range,
+            db_labels, db_score, db_params
+        ) = run_pipeline(df)
+
+        st.subheader("📌 Model Explanation")
+
+        st.write("**Features Used:**")
+        st.write(features_used)
+
+        st.write(f"**Best K:** {best_k}")
+        st.write(f"**Silhouette Score:** {best_score:.3f}")
+
+        # VISUALS
+        col1, col2 = st.columns(2)
+
+        with col1:
+            fig, ax = plt.subplots(figsize=(4,3))
+            ax.plot(K_range, inertia, marker='o')
+            ax.set_title("Elbow Method")
+            st.pyplot(fig)
+
+        with col2:
+            fig2, ax2 = plt.subplots(figsize=(4,3))
+            ax2.plot(list(scores_dict.keys()), list(scores_dict.values()), marker='o')
+            ax2.set_title("Silhouette Scores")
+            st.pyplot(fig2)
+
+        st.subheader("🎯 Clusters")
+
+        fig3, ax3 = plt.subplots(figsize=(5,3))
+        ax3.scatter(df['income'], df['loyalty_score'], c=labels)
+        st.pyplot(fig3)
+
+        st.subheader("📊 Cluster Summary")
+        st.dataframe(df.groupby('Cluster').mean(numeric_only=True))

@@ -1,47 +1,54 @@
 import matplotlib.pyplot as plt
 
-# Your results (fill based on what YOU tested)
-results = {
-    "All Features": 0.12,
-    "Behavior Only": 0.32,
-    "Product + Income": 0.54,
-    "Frequency + Income": 0.59,
-    "Loyalty + Income": 0.60  
-}
 
-# Extract keys and values
-features = list(results.keys())
-scores = list(results.values())
-
-# Plot
-plt.figure(figsize=(10, 5))
-colors = ['blue' if s < 0.6 else 'green' for s in scores]
-
-plt.bar(features, scores, color=colors)
-
-plt.xlabel("Feature Combinations")
-plt.ylabel("Silhouette Score")
-plt.title("KMeans Feature Comparison")
-
-plt.xticks(rotation=30)
-plt.tight_layout()
-plt.savefig("images/kmeans_feature_comparison.png", dpi=300)
-plt.show()
+def plot_kmeans_clusters(X_pca, labels):
+    plt.figure(figsize=(5,4))
+    plt.scatter(df['income'], df['loyalty_score'], c=labels_kmeans)
+    plt.xlabel("Income")
+    plt.ylabel("Loyalty Score")
+    plt.title("KMeans Clusters (Income vs Loyalty)")
+    plt.savefig("outputs/kmeans_scatter_real.png", dpi=300)
+    plt.close()
 
 
-segment_counts = df['Customer_Segment'].value_counts()
+def plot_dbscan_clusters(X_pca, labels):
+    plt.figure()
+    plt.scatter(X_pca[:, 0], X_pca[:, 1], c=labels)
+    plt.title("DBSCAN Clusters (PCA)")
+    plt.xlabel("PCA 1")
+    plt.ylabel("PCA 2")
+    plt.savefig("outputs/dbscan_clusters.png", dpi=300)
+    plt.close()
 
-plt.figure(figsize=(8, 5))
-plt.bar(segment_counts.index, segment_counts.values)
 
-plt.xlabel("Customer Segments")
-plt.ylabel("Number of Customers")
-plt.title("Customer Segmentation Distribution")
+def plot_silhouette_scores(scores_dict):
+    plt.figure()
+    ks = list(scores_dict.keys())
+    scores = list(scores_dict.values())
 
-plt.xticks(rotation=30)
-plt.tight_layout()
+    plt.plot(ks, scores, marker='o')
+    plt.title("Silhouette Scores vs K")
+    plt.xlabel("K")
+    plt.ylabel("Score")
+    plt.savefig("outputs/silhouette_scores.png", dpi=300)
+    plt.close()
 
-# SAVE IMAGE
-plt.savefig("outputs/customer_segments.png", dpi=300)
 
-plt.show()
+def plot_segment_distribution(df):
+    df['Customer_Segment'].value_counts().plot(kind='bar')
+    plt.title("Customer Segment Distribution")
+    plt.xlabel("Segment")
+    plt.ylabel("Count")
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.savefig("outputs/customer_segments_bar.png", dpi=300)
+    plt.close()
+
+
+def plot_segment_pie(df):
+    df['Customer_Segment'].value_counts().plot(kind='pie', autopct='%1.1f%%')
+    plt.title("Customer Segment Pie Chart")
+    plt.ylabel("")
+    plt.tight_layout()
+    plt.savefig("outputs/customer_segments_pie.png", dpi=300)
+    plt.close()
