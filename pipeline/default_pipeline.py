@@ -6,6 +6,7 @@ from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
 from models.kmeans_model import run_kmeans
 from models.dbscan_model import run_dbscan
+from sklearn.decomposition import PCA
 
 def run_default_pipeline(df):
 
@@ -39,6 +40,10 @@ def run_default_pipeline(df):
 
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
+    
+
+    pca = PCA(n_components=2)
+    X_pca = pca.fit_transform(X_scaled)
 
 
     inertia = []
@@ -71,9 +76,10 @@ def run_default_pipeline(df):
     best_db_labels = None
     best_params = None
 
-    for eps in [0.2, 0.3, 0.4]:
+
+    for eps in np.arange(0.1, 1.0, 0.1):
         for min_samples in [3, 5]:
-            labels_db, score_db = run_dbscan(X_scaled, eps, min_samples)
+            labels_db, score_db = run_dbscan(X_pca, eps, min_samples)
 
             if score_db > best_db_score:
                 best_db_score = score_db

@@ -78,11 +78,35 @@ def plot_customer_segments(df, labels, cluster_names):
     return fig
 
 
+def plot_dbscan(X_scaled, db_labels):
 
-def plot_dbscan(df, db_labels):
-    fig, ax = plt.subplots(figsize=(5, 3))
-    ax.scatter(df['income'], df['loyalty_score'], c=db_labels, alpha=0.6)
-    ax.set_title("DBSCAN Clusters")
+    pca = PCA(n_components=2)
+    X_pca = pca.fit_transform(X_scaled)
+
+    fig, ax = plt.subplots(figsize=(7, 5))
+
+    scatter = ax.scatter(
+        X_pca[:, 0],
+        X_pca[:, 1],
+        c=db_labels,
+        cmap='viridis',
+        alpha=0.7
+    )
+
+    noise = db_labels == -1
+    ax.scatter(
+        X_pca[noise, 0],
+        X_pca[noise, 1],
+        c='black',
+        label='Noise',
+        s=20
+    )
+
+    ax.set_title("DBSCAN Clusters (PCA View)")
+    ax.set_xlabel("PCA 1")
+    ax.set_ylabel("PCA 2")
+    ax.legend()
+
     return fig
 
 

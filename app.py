@@ -1,12 +1,11 @@
 import streamlit as st
 import pandas as pd
 
-# Pipelines
+
 from pipeline.default_pipeline import run_default_pipeline
 from pipeline.custom_pipeline import run_custom_pipeline
 
-# Visualizations
-from visualization.plots import (
+from visualisation import (
     plot_elbow,
     plot_silhouette,
     plot_dbscan,
@@ -76,7 +75,7 @@ if page == "Default Dataset Results":
 
 
     st.subheader("DBSCAN Clusters")
-    st.pyplot(plot_dbscan(df, db_labels))
+    st.pyplot(plot_dbscan(X_scaled, db_labels))
 
     st.subheader("DBSCAN Details")
 
