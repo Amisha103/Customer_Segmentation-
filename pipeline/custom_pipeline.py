@@ -11,28 +11,18 @@ def run_custom_pipeline(df):
     df = df.copy()
     df = df.dropna()
 
-    # =========================
-    # AUTO FEATURE DETECTION
-    # =========================
     numeric_cols = df.select_dtypes(include=np.number).columns.tolist()
     categorical_cols = df.select_dtypes(exclude=np.number).columns.tolist()
 
-    # =========================
-    # ENCODING
-    # =========================
+
     df_encoded = pd.get_dummies(df, columns=categorical_cols, drop_first=True)
 
     X = df_encoded
 
-    # =========================
-    # SCALING
-    # =========================
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
 
-    # =========================
-    # KMEANS (AUTO BEST K)
-    # =========================
+
     best_score = -1
     best_k = 2
     best_labels = None

@@ -26,13 +26,11 @@ def run_default_pipeline(df):
         drop_first=True
     )
 
-    # =========================
-    # FEATURE SELECTION
-    # =========================
+
     col_loy = [col for col in df_encoded.columns if 'loyalty_status' in col]
     df_encoded['loyalty_score'] = df_encoded[col_loy].sum(axis=1)
 
-#  IMPORTANT FIX
+
     df['loyalty_score'] = df_encoded['loyalty_score']
 
     features_used = col_loy + ['income', 'loyalty_score']
@@ -42,9 +40,7 @@ def run_default_pipeline(df):
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
 
-    # =========================
-    # ELBOW METHOD
-    # =========================
+
     inertia = []
     K_range = range(2, 8)
 
@@ -53,9 +49,7 @@ def run_default_pipeline(df):
         km.fit(X_scaled)
         inertia.append(km.inertia_)
 
-    # =========================
-    # KMEANS
-    # =========================
+
     best_score = -1
     best_labels = None
     best_k = 2
@@ -72,9 +66,7 @@ def run_default_pipeline(df):
             best_k = k
             best_labels = labels
 
-    # =========================
-    # DBSCAN
-    # =========================
+
     best_db_score = -1
     best_db_labels = None
     best_params = None
