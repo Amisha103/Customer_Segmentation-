@@ -1,11 +1,18 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
-import numpy as np
 
-
+# Pipelines
 from pipeline.default_pipeline import run_default_pipeline
 from pipeline.custom_pipeline import run_custom_pipeline
+
+# Visualizations
+from visualization.plots import (
+    plot_elbow,
+    plot_silhouette,
+    plot_dbscan,
+    plot_dynamic_clusters,
+    plot_pca_clusters  
+)
 
 st.set_page_config(page_title="Customer Segmentation", layout="wide")
 
@@ -30,6 +37,19 @@ if page == "Default Dataset Results":
     ) = run_default_pipeline(df)
 
 
+    cluster_summary = df.groupby('Cluster')[['income', 'purchase_amount']].mean()
+
+    sorted_clusters = cluster_summary.sort_values(by='income')
+
+    cluster_names = {}
+
+    cluster_names[sorted_clusters.index[0]] = "Low Value Customers"
+    cluster_names[sorted_clusters.index[1]] = "Mid Value Customers"
+    cluster_names[sorted_clusters.index[2]] = "High Value Customers"
+
+    df['Segment'] = df['Cluster'].map(cluster_names)
+
+
     st.subheader("Model Explanation")
 
     st.write("**Features Used:**")
@@ -44,34 +64,19 @@ if page == "Default Dataset Results":
 
     col1, col2 = st.columns(2)
 
-
     with col1:
-        fig, ax = plt.subplots(figsize=(4, 3))
-        ax.plot(K_range, inertia, marker='o')
-        ax.set_title("Elbow Method")
-        st.pyplot(fig)
+        st.pyplot(plot_elbow(K_range, inertia))
 
-  
     with col2:
-        fig2, ax2 = plt.subplots(figsize=(4, 3))
-        ax2.plot(list(scores_dict.keys()), list(scores_dict.values()), marker='o')
-        ax2.set_title("Silhouette Scores")
-        st.pyplot(fig2)
+        st.pyplot(plot_silhouette(scores_dict))
 
-    st.subheader("KMeans Clusters (Income vs Loyalty)")
 
-    fig3, ax3 = plt.subplots(figsize=(5, 3))
-    ax3.scatter(df['income'], df['loyalty_score'], c=labels)
-    ax3.set_xlabel("Income")
-    ax3.set_ylabel("Loyalty Score")
-    st.pyplot(fig3)
+    st.subheader("Customer Segments (PCA Visualization)")
+    st.pyplot(plot_pca_clusters(X_scaled, labels))
 
- 
+
     st.subheader("DBSCAN Clusters")
-
-    fig4, ax4 = plt.subplots(figsize=(5, 3))
-    ax4.scatter(df['income'], df['loyalty_score'], c=db_labels)
-    st.pyplot(fig4)
+    st.pyplot(plot_dbscan(df, db_labels))
 
     st.subheader("DBSCAN Details")
 
@@ -80,12 +85,17 @@ if page == "Default Dataset Results":
     st.write("Noise points:", list(db_labels).count(-1))
 
 
-    st.subheader("Cluster Summary")
-    st.dataframe(df.groupby('Cluster').mean(numeric_only=True))
+    st.subheader("Cluster Summary (With Segment Names)")
+    summary = df.groupby(['Cluster', 'Segment']).mean(numeric_only=True)
+    st.dataframe(summary)
 
-    st.subheader("Segment Distribution")
-    st.bar_chart(df['Cluster'].value_counts())
+    st.subheader("Customer Segments Distribution")
+    st.bar_chart(df['Segment'].value_counts())
 
+  
+    st.subheader("Segment Meaning")
+    for k, v in cluster_names.items():
+        st.write(f"{k} → {v}")
 
 
 elif page == "Upload Your Dataset":
@@ -98,7 +108,6 @@ elif page == "Upload Your Dataset":
         st.write("Preview:")
         st.dataframe(df.head())
 
-     
         df, best_k, best_score, scores_dict = run_custom_pipeline(df)
 
 
@@ -110,30 +119,19 @@ elif page == "Upload Your Dataset":
 
         col1, col2 = st.columns(2)
 
-
         with col1:
-            fig, ax = plt.subplots(figsize=(4, 3))
-            ax.plot(list(scores_dict.keys()), list(scores_dict.values()), marker='o')
-            ax.set_title("Silhouette Scores")
-            st.pyplot(fig)
+            st.pyplot(plot_silhouette(scores_dict))
 
 
         st.subheader("Cluster Visualization")
 
-        numeric_cols = df.select_dtypes(include=np.number).columns.tolist()
+        fig = plot_dynamic_clusters(df)
 
-        if len(numeric_cols) >= 2:
-            x_col = numeric_cols[0]
-            y_col = numeric_cols[1]
-
-            fig3, ax3 = plt.subplots(figsize=(5, 3))
-            ax3.scatter(df[x_col], df[y_col], c=df['Cluster'])
-            ax3.set_xlabel(x_col)
-            ax3.set_ylabel(y_col)
-            st.pyplot(fig3)
+        if fig:
+            st.pyplot(fig)
         else:
             st.warning("Not enough numeric columns to visualize")
 
-
+     
         st.subheader("Cluster Summary")
         st.dataframe(df.groupby('Cluster').mean(numeric_only=True))
