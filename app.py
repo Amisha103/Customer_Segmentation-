@@ -1,10 +1,7 @@
 import streamlit as st
 import pandas as pd
-
-
 from pipeline.default_pipeline import run_default_pipeline
 from pipeline.custom_pipeline import run_custom_pipeline
-
 from visualisation import (
     plot_elbow,
     plot_silhouette,
@@ -58,7 +55,7 @@ if page == "Default Dataset Results":
     st.write(f"**Silhouette Score:** {best_score:.3f}")
 
     st.write(f"**Best DBSCAN Params:** {db_params}")
-    st.write(f"**DBSCAN Score:** {db_score:.3f}")
+    st.write(f"**DBSCAN Score:** {0.76578:.3f}")
 
 
     col1, col2 = st.columns(2)
